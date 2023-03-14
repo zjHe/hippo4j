@@ -28,6 +28,7 @@ import cn.hippo4j.springboot.starter.remote.HttpAgent;
 import cn.hippo4j.springboot.starter.remote.ServerHealthCheck;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.util.StringUtils;
 
 import java.net.URLDecoder;
@@ -55,7 +56,7 @@ import static cn.hippo4j.common.constant.Constants.WORD_SEPARATOR;
  * Client worker.
  */
 @Slf4j
-public class ClientWorker {
+public class ClientWorker implements DisposableBean {
 
     private long timeout;
 
@@ -68,6 +69,9 @@ public class ClientWorker {
     private final ScheduledExecutorService executor;
 
     private final ScheduledExecutorService executorService;
+
+
+     private static volatile String  sssss = "dd";
 
     private final CountDownLatch awaitApplicationComplete = new CountDownLatch(1);
 
@@ -99,6 +103,8 @@ public class ClientWorker {
             }
         }, 1L, TimeUnit.MILLISECONDS);
     }
+
+     private String  ss ;
 
     class LongPollingRunnable implements Runnable {
 
@@ -145,8 +151,16 @@ public class ClientWorker {
                 }
             }
             inInitializingCacheList.clear();
+            if (executorService.isShutdown()) {
+                return;
+            }
             executorService.execute(this);
         }
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        executorService.shutdown();
     }
 
     private List<String> checkUpdateDataIds(List<CacheData> cacheDataList, List<String> inInitializingCacheList) {

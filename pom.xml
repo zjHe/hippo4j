@@ -44,7 +44,7 @@
     </modules>
 
     <properties>
-        <revision>1.4.3</revision>
+        <revision>1.4.3-upgrade-SNAPSHOT</revision>
         <!-- Tool -->
         <dozer.version>6.5.0</dozer.version>
         <caffeine.version>2.9.3</caffeine.version>
@@ -325,8 +325,8 @@
             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
         <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <id>nexus-snapshots</id>
+            <url>https://nexusdev.k8s.94ai.pro/repository/maven-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 

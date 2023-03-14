@@ -17,24 +17,23 @@
 
 package cn.hippo4j.springboot.starter.core;
 
+import static cn.hippo4j.common.constant.Constants.BASE_PATH;
+
 import cn.hippo4j.common.api.ClientCloseHookExecute;
 import cn.hippo4j.common.config.ApplicationContextHolder;
 import cn.hippo4j.common.constant.Constants;
+import cn.hippo4j.common.design.builder.ThreadFactoryBuilder;
 import cn.hippo4j.common.model.InstanceInfo;
 import cn.hippo4j.common.web.base.Result;
 import cn.hippo4j.common.web.base.Results;
 import cn.hippo4j.common.web.exception.ErrorCodeEnum;
-import cn.hippo4j.common.design.builder.ThreadFactoryBuilder;
 import cn.hippo4j.springboot.starter.remote.HttpAgent;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.DisposableBean;
-
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import static cn.hippo4j.common.constant.Constants.BASE_PATH;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
 
 /**
  * Discovery client.
@@ -92,6 +91,9 @@ public class DiscoveryClient implements DisposableBean {
         String clientCloseUrlPath = Constants.BASE_PATH + "/client/close";
         Result clientCloseResult;
         try {
+            this.scheduler.shutdown();
+            boolean b = this.scheduler.awaitTermination(3, TimeUnit.SECONDS);
+            log.info("renew | 关闭线程调度器 | {}", b);
             String groupKeyIp = new StringBuilder()
                     .append(instanceInfo.getGroupKey())
                     .append(Constants.GROUP_KEY_DELIMITER)
@@ -126,6 +128,10 @@ public class DiscoveryClient implements DisposableBean {
     private boolean renew() {
         Result renewResult;
         try {
+            if (this.scheduler.isShutdown()) {
+                log.info("renew | 定时调用线程已关闭");
+                return false;
+            }
             InstanceInfo.InstanceRenew instanceRenew = new InstanceInfo.InstanceRenew()
                     .setAppName(instanceInfo.getAppName())
                     .setInstanceId(instanceInfo.getInstanceId())
