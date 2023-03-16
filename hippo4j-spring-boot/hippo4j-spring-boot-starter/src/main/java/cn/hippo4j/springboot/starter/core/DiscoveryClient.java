@@ -27,8 +27,10 @@ import cn.hippo4j.common.model.InstanceInfo;
 import cn.hippo4j.common.web.base.Result;
 import cn.hippo4j.common.web.base.Results;
 import cn.hippo4j.common.web.exception.ErrorCodeEnum;
+import cn.hippo4j.springboot.starter.remote.ClientShutDownService;
 import cn.hippo4j.springboot.starter.remote.HttpAgent;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -53,9 +55,12 @@ public class DiscoveryClient implements DisposableBean {
 
     private final String appPathIdentifier;
 
-    public DiscoveryClient(HttpAgent httpAgent, InstanceInfo instanceInfo) {
+    private final ClientShutDownService clientShutDownService;
+
+    public DiscoveryClient(HttpAgent httpAgent, InstanceInfo instanceInfo, ClientShutDownService clientShutDownService) {
         this.httpAgent = httpAgent;
         this.instanceInfo = instanceInfo;
+        this.clientShutDownService = clientShutDownService;
         this.appPathIdentifier = instanceInfo.getAppName().toUpperCase() + "/" + instanceInfo.getInstanceId();
         this.scheduler = new ScheduledThreadPoolExecutor(
                 new Integer(1),
@@ -91,9 +96,7 @@ public class DiscoveryClient implements DisposableBean {
         String clientCloseUrlPath = Constants.BASE_PATH + "/client/close";
         Result clientCloseResult;
         try {
-            this.scheduler.shutdown();
-            boolean b = this.scheduler.awaitTermination(3, TimeUnit.SECONDS);
-            log.info("renew | 关闭线程调度器 | {}", b);
+            this.shutDown();
             String groupKeyIp = new StringBuilder()
                     .append(instanceInfo.getGroupKey())
                     .append(Constants.GROUP_KEY_DELIMITER)
@@ -113,6 +116,14 @@ public class DiscoveryClient implements DisposableBean {
             }
             log.error("{}{} - client close hook fail.", PREFIX, appPathIdentifier, ex);
         }
+    }
+
+    private void shutDown() throws Exception {
+        this.scheduler.shutdown();
+        long timeout = 3;
+        boolean b = this.scheduler.awaitTermination(timeout, TimeUnit.SECONDS);
+        clientShutDownService.await(timeout);
+        log.info("renew | 关闭线程调度器 | {}", b);
     }
 
     public class HeartbeatThread implements Runnable {
@@ -154,5 +165,11 @@ public class DiscoveryClient implements DisposableBean {
             log.error(PREFIX + "{} - was unable to send heartbeat!", appPathIdentifier, ex);
             return false;
         }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        countDownLatch.await(10, TimeUnit.SECONDS);
+        System.out.println("ddd");
     }
 }

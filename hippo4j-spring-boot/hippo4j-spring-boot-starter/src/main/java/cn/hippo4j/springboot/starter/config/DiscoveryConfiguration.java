@@ -21,6 +21,7 @@ import cn.hippo4j.common.model.InstanceInfo;
 import cn.hippo4j.core.toolkit.inet.InetUtils;
 import cn.hippo4j.springboot.starter.core.DiscoveryClient;
 import cn.hippo4j.springboot.starter.provider.InstanceInfoProviderFactory;
+import cn.hippo4j.springboot.starter.remote.ClientShutDownService;
 import cn.hippo4j.springboot.starter.remote.HttpAgent;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -44,7 +45,7 @@ public class DiscoveryConfiguration {
     }
 
     @Bean
-    public DiscoveryClient hippo4JDiscoveryClient(HttpAgent httpAgent, InstanceInfo instanceInfo) {
-        return new DiscoveryClient(httpAgent, instanceInfo);
+    public DiscoveryClient hippo4JDiscoveryClient(HttpAgent httpAgent, InstanceInfo instanceInfo, ClientShutDownService clientShutDownService) {
+        return new DiscoveryClient(httpAgent, instanceInfo, clientShutDownService);
     }
 }

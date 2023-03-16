@@ -53,6 +53,7 @@ import cn.hippo4j.springboot.starter.monitor.collect.RunTimeInfoCollector;
 import cn.hippo4j.springboot.starter.monitor.send.MessageSender;
 import cn.hippo4j.springboot.starter.monitor.send.http.HttpConnectSender;
 import cn.hippo4j.springboot.starter.notify.ServerNotifyConfigBuilder;
+import cn.hippo4j.springboot.starter.remote.ClientShutDownService;
 import cn.hippo4j.springboot.starter.remote.HttpAgent;
 import cn.hippo4j.springboot.starter.remote.HttpScheduledHealthCheck;
 import cn.hippo4j.springboot.starter.remote.ServerHealthCheck;
@@ -102,9 +103,9 @@ public class DynamicThreadPoolAutoConfiguration {
     @Bean
     public ClientWorker hippo4jClientWorker(HttpAgent httpAgent,
                                             InetUtils hippo4JInetUtils,
-                                            ServerHealthCheck serverHealthCheck) {
+                                            ServerHealthCheck serverHealthCheck, ClientShutDownService clientShutDownService) {
         String identify = IdentifyUtil.generate(environment, hippo4JInetUtils);
-        return new ClientWorker(httpAgent, identify, serverHealthCheck);
+        return new ClientWorker(httpAgent, identify, serverHealthCheck, clientShutDownService);
     }
 
     @Bean
@@ -155,6 +156,11 @@ public class DynamicThreadPoolAutoConfiguration {
     @SuppressWarnings("all")
     public ServerHealthCheck httpScheduledHealthCheck(HttpAgent httpAgent) {
         return new HttpScheduledHealthCheck(httpAgent);
+    }
+
+    @Bean
+    public ClientShutDownService clientShutDownService() {
+        return new ClientShutDownService();
     }
 
     @Bean

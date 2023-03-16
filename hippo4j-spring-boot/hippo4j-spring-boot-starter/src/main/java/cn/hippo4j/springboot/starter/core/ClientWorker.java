@@ -17,28 +17,6 @@
 
 package cn.hippo4j.springboot.starter.core;
 
-import cn.hippo4j.common.model.ThreadPoolParameterInfo;
-import cn.hippo4j.common.toolkit.ContentUtil;
-import cn.hippo4j.common.toolkit.GroupKey;
-import cn.hippo4j.common.toolkit.IdUtil;
-import cn.hippo4j.common.toolkit.JSONUtil;
-import cn.hippo4j.common.web.base.Result;
-import cn.hippo4j.common.design.builder.ThreadFactoryBuilder;
-import cn.hippo4j.springboot.starter.remote.HttpAgent;
-import cn.hippo4j.springboot.starter.remote.ServerHealthCheck;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.util.StringUtils;
-
-import java.net.URLDecoder;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import static cn.hippo4j.common.constant.Constants.CONFIG_CONTROLLER_PATH;
 import static cn.hippo4j.common.constant.Constants.CONFIG_LONG_POLL_TIMEOUT;
 import static cn.hippo4j.common.constant.Constants.GROUP_KEY_DELIMITER_TRANSLATION;
@@ -51,6 +29,33 @@ import static cn.hippo4j.common.constant.Constants.NULL;
 import static cn.hippo4j.common.constant.Constants.PROBE_MODIFY_REQUEST;
 import static cn.hippo4j.common.constant.Constants.WEIGHT_CONFIGS;
 import static cn.hippo4j.common.constant.Constants.WORD_SEPARATOR;
+
+import cn.hippo4j.common.design.builder.ThreadFactoryBuilder;
+import cn.hippo4j.common.model.ThreadPoolParameterInfo;
+import cn.hippo4j.common.toolkit.ContentUtil;
+import cn.hippo4j.common.toolkit.GroupKey;
+import cn.hippo4j.common.toolkit.IdUtil;
+import cn.hippo4j.common.toolkit.JSONUtil;
+import cn.hippo4j.common.web.base.Result;
+import cn.hippo4j.springboot.starter.remote.ClientShutDownService;
+import cn.hippo4j.springboot.starter.remote.HttpAgent;
+import cn.hippo4j.springboot.starter.remote.ServerHealthCheck;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.util.StringUtils;
 
 /**
  * Client worker.
@@ -70,21 +75,23 @@ public class ClientWorker implements DisposableBean {
 
     private final ScheduledExecutorService executorService;
 
-
-     private static volatile String  sssss = "dd";
+    private static volatile String sssss = "dd";
 
     private final CountDownLatch awaitApplicationComplete = new CountDownLatch(1);
 
     private final CountDownLatch cacheCondition = new CountDownLatch(1);
 
+    private final ClientShutDownService clientShutDownService;
+
     private final ConcurrentHashMap<String, CacheData> cacheMap = new ConcurrentHashMap(16);
 
     @SuppressWarnings("all")
-    public ClientWorker(HttpAgent httpAgent, String identify, ServerHealthCheck serverHealthCheck) {
+    public ClientWorker(HttpAgent httpAgent, String identify, ServerHealthCheck serverHealthCheck, ClientShutDownService clientShutDownService) {
         this.agent = httpAgent;
         this.identify = identify;
         this.timeout = CONFIG_LONG_POLL_TIMEOUT;
         this.serverHealthCheck = serverHealthCheck;
+        this.clientShutDownService = clientShutDownService;
         this.executor = Executors.newScheduledThreadPool(1, runnable -> {
             Thread thread = new Thread(runnable);
             thread.setName("client.worker.executor");
@@ -104,7 +111,7 @@ public class ClientWorker implements DisposableBean {
         }, 1L, TimeUnit.MILLISECONDS);
     }
 
-     private String  ss ;
+    private String ss;
 
     class LongPollingRunnable implements Runnable {
 
@@ -125,6 +132,10 @@ public class ClientWorker implements DisposableBean {
                 cacheMapInitEmptyFlag = false;
             }
             serverHealthCheck.isHealthStatus();
+            if (clientShutDownService.countDown() || executor.isShutdown()) {
+                log.info("客户端已经下线");
+                return;
+            }
             List<CacheData> cacheDataList = new ArrayList();
             List<String> inInitializingCacheList = new ArrayList();
             cacheMap.forEach((key, val) -> cacheDataList.add(val));
@@ -151,9 +162,6 @@ public class ClientWorker implements DisposableBean {
                 }
             }
             inInitializingCacheList.clear();
-            if (executorService.isShutdown()) {
-                return;
-            }
             executorService.execute(this);
         }
     }
@@ -161,6 +169,7 @@ public class ClientWorker implements DisposableBean {
     @Override
     public void destroy() throws Exception {
         executorService.shutdown();
+        log.info("ClientWorker shutdown");
     }
 
     private List<String> checkUpdateDataIds(List<CacheData> cacheDataList, List<String> inInitializingCacheList) {
