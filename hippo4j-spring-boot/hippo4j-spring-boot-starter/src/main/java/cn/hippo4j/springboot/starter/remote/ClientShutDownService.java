@@ -34,7 +34,7 @@ public class ClientShutDownService {
 
     public void await(long timeout) throws InterruptedException {
         setClientShutDown(true);
-        countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
+        countDownLatch.await(timeout, TimeUnit.SECONDS);
     }
 
     public boolean countDown() {

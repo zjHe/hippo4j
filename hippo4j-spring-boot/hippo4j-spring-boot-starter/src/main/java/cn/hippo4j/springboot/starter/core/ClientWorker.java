@@ -174,6 +174,7 @@ public class ClientWorker implements DisposableBean {
 
     @Override
     public void destroy() throws Exception {
+        executorService.shutdownNow();
         log.info("ClientWorker shutdown");
     }
 
