@@ -33,6 +33,7 @@ import static cn.hippo4j.common.constant.Constants.WORD_SEPARATOR;
 import cn.hippo4j.common.design.builder.ThreadFactoryBuilder;
 import cn.hippo4j.common.model.ThreadPoolParameterInfo;
 import cn.hippo4j.common.toolkit.ContentUtil;
+import cn.hippo4j.common.toolkit.DateUtil;
 import cn.hippo4j.common.toolkit.GroupKey;
 import cn.hippo4j.common.toolkit.IdUtil;
 import cn.hippo4j.common.toolkit.JSONUtil;
@@ -43,6 +44,7 @@ import cn.hippo4j.springboot.starter.remote.ServerHealthCheck;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.StringUtils;
 
 /**
@@ -99,7 +102,7 @@ public class ClientWorker implements DisposableBean {
             return thread;
         });
         this.executorService = Executors.newSingleThreadScheduledExecutor(
-                ThreadFactoryBuilder.builder().prefix("client.long.polling.executor").daemon(true).build());
+            ThreadFactoryBuilder.builder().prefix("client.long.polling.executor").daemon(true).build());
         log.info("Client identify: {}", identify);
         this.executor.schedule(() -> {
             try {
@@ -132,14 +135,17 @@ public class ClientWorker implements DisposableBean {
                 cacheMapInitEmptyFlag = false;
             }
             serverHealthCheck.isHealthStatus();
-            if (clientShutDownService.countDown() || executor.isShutdown()) {
-                log.info("客户端已经下线");
-                return;
-            }
+
             List<CacheData> cacheDataList = new ArrayList();
             List<String> inInitializingCacheList = new ArrayList();
             cacheMap.forEach((key, val) -> cacheDataList.add(val));
+            if (clientShutDownService.countDown()) {
+                log.info("客户端已经下线");
+                return;
+            }
+            log.info("开始长轮询 | time:{}", DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss"));
             List<String> changedTpIds = checkUpdateDataIds(cacheDataList, inInitializingCacheList);
+            log.info("结束长轮询 | time:{}", DateUtil.format(new Date(), "yyyy-MM-dd HH:mm:ss"));
             for (String groupKey : changedTpIds) {
                 String[] keys = groupKey.split(GROUP_KEY_DELIMITER_TRANSLATION);
                 String tpId = keys[0];
@@ -156,7 +162,7 @@ public class ClientWorker implements DisposableBean {
             }
             for (CacheData cacheData : cacheDataList) {
                 if (!cacheData.isInitializing() || inInitializingCacheList
-                        .contains(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId))) {
+                    .contains(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId))) {
                     cacheData.checkListenerMd5();
                     cacheData.setInitializing(false);
                 }
@@ -168,7 +174,6 @@ public class ClientWorker implements DisposableBean {
 
     @Override
     public void destroy() throws Exception {
-        executorService.shutdown();
         log.info("ClientWorker shutdown");
     }
 

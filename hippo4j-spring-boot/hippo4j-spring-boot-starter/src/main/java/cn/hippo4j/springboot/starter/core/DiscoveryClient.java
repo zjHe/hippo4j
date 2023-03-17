@@ -120,10 +120,9 @@ public class DiscoveryClient implements DisposableBean {
 
     private void shutDown() throws Exception {
         this.scheduler.shutdown();
-        long timeout = 3;
-        boolean b = this.scheduler.awaitTermination(timeout, TimeUnit.SECONDS);
+        long timeout = 5;
         clientShutDownService.await(timeout);
-        log.info("renew | 关闭线程调度器 | {}", b);
+        log.info("await | 关闭线程调度器 | timeout:{}", timeout);
     }
 
     public class HeartbeatThread implements Runnable {
