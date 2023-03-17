@@ -102,7 +102,7 @@ public class ClientWorker implements DisposableBean {
             return thread;
         });
         this.executorService = Executors.newSingleThreadScheduledExecutor(
-            ThreadFactoryBuilder.builder().prefix("client.long.polling.executor").daemon(true).build());
+                ThreadFactoryBuilder.builder().prefix("client.long.polling.executor").daemon(true).build());
         log.info("Client identify: {}", identify);
         this.executor.schedule(() -> {
             try {
@@ -162,7 +162,7 @@ public class ClientWorker implements DisposableBean {
             }
             for (CacheData cacheData : cacheDataList) {
                 if (!cacheData.isInitializing() || inInitializingCacheList
-                    .contains(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId))) {
+                        .contains(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId))) {
                     cacheData.checkListenerMd5();
                     cacheData.setInitializing(false);
                 }
